@@ -54,11 +54,11 @@ def cron_event_to_calendar_event(cron_event):
         "description": cron_event.schedule + " Recurrence rule: " + cron_event.recurrence_rule,
         "start":  {
             "dateTime": cron_event.starting_date.isoformat(),
-            "timeZone": "UTC"
+            "timeZone": "America/New_York"
         },
         "end": {
             "dateTime": (cron_event.starting_date + datetime.timedelta(minutes=10)).isoformat(),
-            "timeZone": "UTC"
+            "timeZone": "America/New_York"
         },
         "recurrence": [
             cron_event.recurrence_rule
