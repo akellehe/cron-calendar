@@ -14,10 +14,11 @@ SCOPES = ['https://www.googleapis.com/auth/calendar']
 
 
 def create_calendar(service, calendar_id):
-    calendar_list_entry = {
-        'id': calendar_id
+    calendar = {
+        'summary': calendar_id,
+        'timeZone': 'UTC'
     }
-    return service.calendarList().insert(body=calendar_list_entry).execute()
+    return service.calendars().insert(body=calendar).execute()
 
 
 def list_calendar_ids(service):
@@ -33,7 +34,7 @@ def create_cron_calendar_if_not_exists(service):
     calendar_ids = list_calendar_ids(service)
     calendar_id = f'{user}.cron'
     if calendar_id not in calendar_ids:
-        create_calendar(service, calendar_id)
+        return create_calendar(service, calendar_id)
 
 
 def cron_recurrence_rule_to_gcal_recurrence_rule(recurrence_rule):
@@ -49,21 +50,28 @@ def cron_recurrence_rule_to_gcal_recurrence_rule(recurrence_rule):
 
 def cron_event_to_calendar_event(cron_event):
     return {
-        'id': cron_event.command,
+        'summary': cron_event.command,
         "start":  {
-            "dateTime": cron_event.datetime.isoformat(),
+            "dateTime": cron_event.starting_date.isoformat(),
+            "timeZone": "UTC"
         },
         "end": {
-            "dateTime": (cron_event.datetime + datetime.timedelta(minutes=10)).isoformat(),
+            "dateTime": (cron_event.starting_date + datetime.timedelta(minutes=10)).isoformat(),
+            "timeZone": "UTC"
         },
         "recurrence": [
-            "RRULE:FREQ=MONTHLY"
+            cron_event.recurrence_rule
         ]
     }
 
 
-def add_calendar_events(events):
-    pass
+def add_calendar_events(service, calendar, events):
+    user = getpass.getuser()
+    for evt in events:
+        print('Creating event for')
+        print(evt)
+        event = service.events().insert(calendarId=calendar.get('id'), body=evt).execute()
+        print(event.get('htmlLink'))
 
 
 def authenticate():
@@ -71,7 +79,6 @@ def authenticate():
     Prints the start and name of the next 10 events on the user's calendar.
     """
     creds = None
-    user = getpass.getuser()
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
     # time.
@@ -91,6 +98,3 @@ def authenticate():
             pickle.dump(creds, token)
     return creds
 
-
-if __name__ == '__main__':
-    main()

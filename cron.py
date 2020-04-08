@@ -6,7 +6,7 @@ import getpass
 import crontabs
 
 
-CronEvent = collections.namedtuple("CronEvent", ["command", "recurrence_rule"])
+CronEvent = collections.namedtuple("CronEvent", ["command", "starting_date", "recurrence_rule"])
 
 
 def not_star(*args):
@@ -30,8 +30,8 @@ def is_weekly(ci):
 
 
 def is_daily(ci):
-    return (not_star(ci.minute, ci.hour) and are_star(ci.dom, ci.month, ci.dow)) or (
-        not_star(ci.minute) and are_star(ci.hour, ci.dom, ci.month, ci.dow))
+    return (not_star(ci.hour) and are_star(ci.dom, ci.month, ci.dow)) or (
+        are_star(ci.hour, ci.dom, ci.month, ci.dow))
 
 
 def to_list(value):
@@ -39,7 +39,7 @@ def to_list(value):
 
 
 def expand(value):
-    values = value.split(',')
+    values = value.render().split(',')
     final_values = []
     for value_range in values:
         if '-' in value_range:
@@ -63,6 +63,11 @@ def find_stopping_date(ci):
     if is_annual(ci): return next_run_at.replace(year=next_run_at.year + 1)
 
 
+def find_starting_date(ci):
+    for next_run_at in ci.schedule(date_from=time.time()):
+        return next_run_at
+
+
 def non_recurrent_datetimes_from_crontab(ci):
     stopping_date = find_stopping_date(ci)
     non_recurrent_datetimes = []
@@ -80,39 +85,51 @@ def numbered_to_lettered_dow(ci):
 
 
 def recurrence_prefix(ci):
-    if is_daily(ci): "RRULE:FREQ=DAILY"
-    elif is_weekly(ci): return "RRULE:FREQ=WEEKLY"
-    elif is_monthly(ci): return "RRULE:FREQ=MONTHLY"
-    elif is_annual(ci): return "RRULE:FREQ=ANNUALLY"
+    print('--------------------------------')
+    print(ci)
+    print(ci.description())
+    if is_daily(ci): return "RRULE:FREQ=DAILY;INTERVAL=1"
+    elif is_weekly(ci): return "RRULE:FREQ=WEEKLY;INTERVAL=1"
+    elif is_monthly(ci): return "RRULE:FREQ=MONTHLY;INTERVAL=1"
+    elif is_annual(ci): return "RRULE:FREQ=ANNUALLY;INTERVAL=1"
+
+
+def get_star_list(end):
+    return ",".join([str(i) for i in range(end)])
 
 
 def recurrence_suffixes(ci):
     suffixes = []
     if ci.minutes != '*':
         suffixes.append("BYMINUTE=" + to_list(ci.minutes))
+    else:
+        suffixes.append("BYMINUTE=" + get_star_list(60))
     if ci.hours != '*':
         suffixes.append("BYHOUR=" + to_list(ci.hours))
+    else:
+        suffixes.append("BYHOUR=" + get_star_list(24))
     if ci.dom != '*':
         suffixes.append("BYMONTHDAY=" + to_list(ci.dom))
     if ci.months != '*':
         suffixes.append("BYMONTH=" + to_list(ci.months))
-    if ci.days_of_the_week != '*':
+    if ci.dow != '*':
         suffixes.append("BYDAY=" + numbered_to_lettered_dow(ci))
     return suffixes
 
 
 def recurrence_rule_from_crontab(ci):
     prefix = recurrence_prefix(ci)
-    suffix = ";".join([prefix] + recurrence_suffixes(ci))
-    return prefix + suffix
+    suffixes = recurrence_suffixes(ci)
+    return ";".join([prefix] + suffixes)
 
 
 def get_events():
     user = getpass.getuser()
     events = []
-    for ct in crontabs.CronTab(user=user):
-        for cron in ct.crons:
-            events.append(
-                CronEvent(ct.command, recurrence_rule_from_crontab(cron)))
+    for ct in crontabs.CronTab(user=user).crons:
+        events.append(
+            CronEvent(ct.command,
+                      find_starting_date(ct),
+                      recurrence_rule_from_crontab(ct)))
     return events
 
