@@ -6,7 +6,7 @@ import getpass
 import crontabs
 
 
-CronEvent = collections.namedtuple("CronEvent", ["command", "starting_date", "recurrence_rule"])
+CronEvent = collections.namedtuple("CronEvent", ["command", "starting_date", "recurrence_rule", "schedule"])
 
 
 def not_star(*args):
@@ -130,6 +130,7 @@ def get_events():
         events.append(
             CronEvent(ct.command,
                       find_starting_date(ct),
-                      recurrence_rule_from_crontab(ct)))
+                      recurrence_rule_from_crontab(ct),
+                      str(ct)))
     return events
 

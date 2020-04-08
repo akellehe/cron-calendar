@@ -50,7 +50,8 @@ def cron_recurrence_rule_to_gcal_recurrence_rule(recurrence_rule):
 
 def cron_event_to_calendar_event(cron_event):
     return {
-        'summary': cron_event.command,
+        "summary": cron_event.command,
+        "description": cron_event.schedule + " Recurrence rule: " + cron_event.recurrence_rule,
         "start":  {
             "dateTime": cron_event.starting_date.isoformat(),
             "timeZone": "UTC"
@@ -66,7 +67,6 @@ def cron_event_to_calendar_event(cron_event):
 
 
 def add_calendar_events(service, calendar, events):
-    user = getpass.getuser()
     for evt in events:
         print('Creating event for')
         print(evt)
